@@ -38,20 +38,14 @@ def checkbounds(cc,rr,size_x, size_y):
     return cc,rr
 
 def produce_mask(path):
-	df=pd.read_csv(path)
+	try:
+            df=pd.read_csv(path)
+	except:
+            df=pd.read_csv(path, engine='python')
 	if (df.empty):
 		print('Empty csv file')
 		return
-	img=np.zeros((df['width'][0], df['height'][0]))
-
-	df['temp_label']=pd.Categorical(
-		df['Label'],
-		categories=label_order,
-		ordered=True
-		)
-	df.sort_values('temp_label', inplace=True, kind='mergesort') # mergesort is stable algorithm
-																 # keeps points in the order they should
- 
+	img=np.zeros((df['height'][0], df['width'][0]))
 	for name,group in df.groupby('Object', sort=False):
 		label=group['Label'].values[0]
 		# ---- following specific to this project ----
@@ -66,14 +60,14 @@ def produce_mask(path):
 		if group['Type'].values[0]=='Polygon':
 			cc,rr=polygon(group['X'].values, group['Y'].values)
 			cc,rr=checkbounds(cc,rr,df['width'][0]-1,df['height'][0]-1)
-			img[cc,rr]=label_multiclass
+			img[rr,cc]=label_multiclass
 		elif group['Type'].values[0]=='Line':
 			for j in range(group.shape[0]-1):
 				r0, c0 = int(group['X'].values[j]), int(group['Y'].values[j])
 				r1, c1 = int(group['X'].values[j+1]), int(group['Y'].values[j+1])
 				cc,rr=line(r0, c0, r1, c1)
 				cc,rr=checkbounds(cc,rr,df['width'][0]-1,df['height'][0]-1)
-				img[cc,rr]=label_multiclass
+				img[rr,cc]=label_multiclass
 
 		else:
 			img[int(group['X']),int(group['Y'])]=label_multiclass
@@ -92,17 +86,20 @@ def produce_mask(path):
 if __name__ == '__main__':
 	import sys
 	import glob, os
-	# ---- following code allows one csv to be chosen for mask generation ----
-	# app = QApplication(sys.argv)
-	# dialogue=QFileDialog()
-	# dialogue.setNameFilter("*.csv");
-	# dialogue.setDefaultSuffix('csv')
-	# dialogue.setFileMode(QFileDialog.ExistingFiles)
-	# dialogue.exec()
-	# path=dialogue.selectedFiles()
-	# [produce_mask(p) for p in path]
-	# ---------
-	inputPath=sys.argv[1]
-	for f in [x for x in os.listdir(inputPath) if x.endswith('.csv')]:
-		print('Current file', f)
-		produce_mask(inputPath+f)
+	# ---- select (multiple) csv files to process ----
+	app = QApplication(sys.argv)
+	dialogue=QFileDialog()
+	dialogue.setNameFilter("*.csv");
+	dialogue.setDefaultSuffix('csv')
+	dialogue.setFileMode(QFileDialog.ExistingFiles)
+	dialogue.exec()
+	path=dialogue.selectedFiles()
+	[produce_mask(p) for p in path]
+
+    #or use directory instead
+# =============================================================================
+# 	inputPath=sys.argv[1]
+# 	for f in [x for x in os.listdir(inputPath) if x.endswith('.csv')]:
+# 		print('Current file', f)
+# 		produce_mask(inputPath+f)
+# =============================================================================
